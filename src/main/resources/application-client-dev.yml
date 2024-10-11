@@ -1,0 +1,6 @@
+app:
+  portal-data:
+    welcome-url: ""
+    login-url: ""
+    funds-url: ""
+    accounts-url: ""
