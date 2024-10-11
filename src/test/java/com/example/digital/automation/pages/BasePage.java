@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component;
 import java.time.Duration;
 
 public class BasePage<T extends BasePage<T>> {
-    WebDriver driver;
+    protected WebDriver driver;
     WebDriverWait wait;
 
     public BasePage(WebDriver driver) {

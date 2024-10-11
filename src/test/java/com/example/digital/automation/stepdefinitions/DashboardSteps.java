@@ -8,10 +8,12 @@ import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.stereotype.Component;
 
 import static org.junit.Assert.assertEquals;
 
+@SpringBootTest
 public class DashboardSteps extends BaseTest {
 
     LoginPage loginPage;

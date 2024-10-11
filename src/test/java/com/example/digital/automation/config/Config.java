@@ -12,6 +12,7 @@ import java.util.HashMap;
 @ConfigurationProperties(prefix = "app")
 public class Config {
     HashMap<String, String> portalData;
+
     public HashMap<String, String> getPortalData() {
         return portalData;
     }

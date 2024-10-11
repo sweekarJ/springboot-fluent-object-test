@@ -9,39 +9,25 @@ import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.firefox.FirefoxDriver;
 import org.openqa.selenium.edge.EdgeDriver;
 import org.openqa.selenium.Dimension;
-import org.junit.After;
 import org.junit.Before;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.stereotype.Component;
+import org.springframework.boot.test.context.SpringBootTest;
 
+@SpringBootTest
 public class BaseTest {
 
-    WebDriver driver;
-    static LoginPage loginPage;
-    static HomePage homePage;
-    static DashboardPage dashboardPage;
+    @Autowired
+    protected WebDriver driver;
+    @Autowired
+    protected LoginPage loginPage;
+    @Autowired
+    protected HomePage homePage;
+    @Autowired
+    protected DashboardPage dashboardPage;
+//    static ScreenshotHook screenshotHook;
 
     @Before
     public void setUp(String browser, String resolution) {
-        // Initialize WebDriver based on browser selection
-        switch (browser.toLowerCase()) {
-            case "firefox":
-                WebDriverManager.firefoxdriver().setup();
-                driver = new FirefoxDriver();
-                break;
-            case "edge":
-                WebDriverManager.edgedriver().setup();
-                driver = new EdgeDriver();
-                break;
-            case "chrome":
-            default:
-                WebDriverManager.chromedriver().setup();
-                driver = new ChromeDriver();
-                break;
-        }
-
         // Split the resolution string (e.g., "1920x1080") to set browser window size
         String[] dimensions = resolution.split("x");
         int width = Integer.parseInt(dimensions[0]);
