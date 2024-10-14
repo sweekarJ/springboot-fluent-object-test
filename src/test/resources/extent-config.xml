@@ -1,0 +1,8 @@
+<configuration>
+    <reportName>Automation Test Report</reportName>
+    <reportHeadline>Test Execution Summary</reportHeadline>
+    <theme>standard</theme>
+    <encoding>utf-8</encoding>
+    <protocol>https</protocol>
+    <enableTimeline>true</enableTimeline>
+</configuration>

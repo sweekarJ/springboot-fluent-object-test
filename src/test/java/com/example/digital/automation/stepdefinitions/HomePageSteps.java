@@ -1,5 +1,6 @@
 package com.example.digital.automation.stepdefinitions;
 
+import com.aventstack.extentreports.Status;
 import com.example.digital.automation.config.Config;
 import com.example.digital.automation.pages.HomePage;
 import com.example.digital.automation.pages.LoginPage;
@@ -19,37 +20,74 @@ import static org.hamcrest.Matchers.containsString;
 public class HomePageSteps extends BaseTest {
     @Autowired
     Config config;
-
+    @Autowired
+    CucumberHooks cucumberHooks;
     @Given("I am using the {string} browser with resolution {string}")
     public void i_am_using_the_browser_with_resolution(String browser, String resolution) {
-        setUp(browser, resolution); // Call to BaseTest's setup method
-        homePage = new HomePage(driver);
+        try {
+            setUp(browser, resolution); // Call to BaseTest's setup method
+            homePage = new HomePage(driver);
+            cucumberHooks.scenarioTest.log(Status.PASS, "Step passed successfully");
+        } catch (Exception e) {
+            cucumberHooks.scenarioTest.log(Status.FAIL, "Step failed with error: " + e.getMessage());
+            throw e;
+        }
     }
 
     @Given("I am on the welcome page")
     public void i_am_on_the_welcome_page() {
-        homePage.goTo(config.getPortalData().get("welcome-url"));
+        try {
+            homePage.goTo(config.getPortalData().get("welcome-url"));
+            cucumberHooks.scenarioTest.log(Status.PASS, "Step passed successfully");
+        } catch (Exception e) {
+            cucumberHooks.scenarioTest.log(Status.FAIL, "Step failed with error: " + e.getMessage());
+            throw e;
+        }
     }
 
     @And("I accept-all cookies")
     public void i_accept_all_cookies() {
-        homePage.clickAcceptAll();
+        try {
+            homePage.clickAcceptAll();
+            cucumberHooks.scenarioTest.log(Status.PASS, "Step passed successfully");
+        } catch (Exception e) {
+            cucumberHooks.scenarioTest.log(Status.FAIL, "Step failed with error: " + e.getMessage());
+            throw e;
+        }
     }
 
     @And("I click the homepage login button")
     public void i_click_the_homepage_login_button() {
-        loginPage = homePage.clickLogin();
+        try {
+            loginPage = homePage.clickLogin();
+            cucumberHooks.scenarioTest.log(Status.PASS, "Step passed successfully");
+        } catch (Exception e) {
+            cucumberHooks.scenarioTest.log(Status.FAIL, "Step failed with error: " + e.getMessage());
+            throw e;
+        }
     }
 
     @Then("I should be redirected to the login page")
     public void i_should_be_redirected_to_the_login_page() throws InterruptedException {
-        loginPage.waitForUsernameField();
-        assertThat(driver.getCurrentUrl(), containsString(config.getPortalData().get("login-url")));
+        try {
+            loginPage.waitForUsernameField();
+            assertThat(driver.getCurrentUrl(), containsString(config.getPortalData().get("login-url")));
+            cucumberHooks.scenarioTest.log(Status.PASS, "Step passed successfully");
+        } catch (Exception e) {
+            cucumberHooks.scenarioTest.log(Status.FAIL, "Step failed with error: " + e.getMessage());
+            throw e;
+        }
     }
 
     @And("I should see a login welcome message {string}")
     public void i_should_see_a_login_welcome_message(String expectedMessage) {
-        String actualMessage = homePage.getWelcomeMessage();
-        assertEquals(expectedMessage, actualMessage);
+        try {
+            String actualMessage = homePage.getWelcomeMessage();
+            assertEquals(expectedMessage, actualMessage);
+            cucumberHooks.scenarioTest.log(Status.PASS, "Step passed successfully");
+        } catch (Exception e) {
+            cucumberHooks.scenarioTest.log(Status.FAIL, "Step failed with error: " + e.getMessage());
+            throw e;
+        }
     }
 }
