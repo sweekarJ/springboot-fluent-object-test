@@ -1,5 +1,7 @@
+import org.apache.hc.client5.http.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
+import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
 import org.apache.hc.client5.http.ssl.SSLConnectionSocketFactory;
 import org.apache.hc.client5.http.ssl.TrustAllStrategy;
 import org.apache.hc.core5.ssl.SSLContextBuilder;
@@ -38,9 +40,13 @@ public class PfxHttpClient {
         // Create SSL Socket Factory for HttpClient 5
         SSLConnectionSocketFactory socketFactory = new SSLConnectionSocketFactory(sslContext);
 
-        // ✅ Correct method: Set SSLConnectionSocketFactory
+        // Use Connection Manager instead of setSSLSocketFactory()
+        PoolingHttpClientConnectionManager connectionManager = new PoolingHttpClientConnectionManager();
+        connectionManager.setDefaultSocketConfig(socketFactory.getSocketConfig());
+
+        // Create CloseableHttpClient using Connection Manager
         CloseableHttpClient httpClient = HttpClients.custom()
-                .setSSLSocketFactory(socketFactory)  // ✅ Correct method for HttpClient 5.x
+                .setConnectionManager(connectionManager)  // ✅ Correct for HttpClient 5.x
                 .build();
 
         // Use HttpClient with RestTemplate
