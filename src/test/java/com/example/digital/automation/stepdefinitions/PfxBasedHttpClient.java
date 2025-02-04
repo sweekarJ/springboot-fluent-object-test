@@ -1,73 +1,63 @@
-import org.apache.hc.client5.http.classic.CloseableHttpClient;
-import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
-import org.apache.hc.client5.http.impl.classic.HttpClients;
-import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
-import org.apache.hc.client5.http.ssl.SSLConnectionSocketFactory;
-import org.apache.hc.client5.http.ssl.TrustAllStrategy;
-import org.apache.hc.core5.ssl.SSLContextBuilder;
-import org.springframework.core.io.ClassPathResource;
-import org.springframework.http.*;
-import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
-import org.springframework.web.client.RestTemplate;
+import org.apache.http.client.HttpClient; // Note: HttpClient 4 import
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.impl.conn.PoolingClientConnectionManager; // Note: HttpClient 4 import
+import org.apache.http.conn.scheme.Scheme; // Note: HttpClient 4 import
+import org.apache.http.conn.ssl.SSLSocketFactory; // Note: HttpClient 4 import
+import org.apache.http.client.methods.HttpPost; // Note: HttpClient 4 import
+import org.apache.http.entity.StringEntity; // Note: HttpClient 4 import
+import org.apache.http.impl.client.CloseableHttpClient; // Note: HttpClient 4 import
+import org.apache.http.HttpResponse; // Note: HttpClient 4 import
+import org.apache.http.util.EntityUtils;  // Note: HttpClient 4 import
 
-import javax.net.ssl.SSLContext;
+import org.springframework.core.io.ClassPathResource;
+
 import java.io.InputStream;
 import java.security.KeyStore;
-import java.util.HashMap;
-import java.util.Map;
+
+// ... other imports
 
 public class PfxHttpClient {
     public static void main(String[] args) throws Exception {
-        String certPath = "certs/your-cert.pfx"; // Path inside `src/main/resources/certs/`
-        String certPassword = "your-cert-passphrase";
-        String url = "https://your-secure-api.com";
+        // ... (certificate loading code - same as before)
 
-        // Load PFX certificate from classpath
-        ClassPathResource resource = new ClassPathResource(certPath);
-        InputStream certStream = resource.getInputStream();
+        // HttpClient 4 approach:
+        KeyStore trustStore = KeyStore.getInstance("JKS"); // Or PKCS12 if needed
+        trustStore.load(null, null); // Initialize an empty truststore
 
-        // Load KeyStore with PFX
-        KeyStore keyStore = KeyStore.getInstance("PKCS12");
-        keyStore.load(certStream, certPassword.toCharArray());
-        certStream.close();
+        SSLSocketFactory sf = new SSLSocketFactory(sslContext);
+        Scheme scheme = new Scheme("https", 443, sf);
 
-        // Create SSLContext
-        SSLContext sslContext = SSLContextBuilder.create()
-                .loadKeyMaterial(keyStore, certPassword.toCharArray())
-                .loadTrustMaterial(new TrustAllStrategy()) // Trust all certificates
+        PoolingClientConnectionManager connectionManager = new PoolingClientConnectionManager();
+        connectionManager.getSchemeRegistry().register(scheme);
+
+
+        HttpClient httpClient = HttpClients.custom()
+                .setConnectionManager(connectionManager)
                 .build();
 
-        // Create SSL Socket Factory for HttpClient 5
-        SSLConnectionSocketFactory socketFactory = new SSLConnectionSocketFactory(sslContext);
+        HttpPost httpPost = new HttpPost(url);
 
-        // Use Connection Manager instead of setSSLSocketFactory()
-        PoolingHttpClientConnectionManager connectionManager = new PoolingHttpClientConnectionManager();
-        connectionManager.setDefaultSocketConfig(socketFactory.getSocketConfig());
+        // ... (headers and body - form URL encoded)
+        String requestBody = body.entrySet().stream()
+                .map(entry -> entry.getKey() + "=" + entry.getValue())
+                .reduce((s1, s2) -> s1 + "&" + s2)
+                .orElse("");
 
-        // Create CloseableHttpClient using Connection Manager
-        CloseableHttpClient httpClient = HttpClients.custom()
-                .setConnectionManager(connectionManager)  // ✅ Correct for HttpClient 5.x
-                .build();
+        StringEntity entity = new StringEntity(requestBody, "UTF-8"); // Important: Specify UTF-8
+        httpPost.setEntity(entity);
 
-        // Use HttpClient with RestTemplate
-        HttpComponentsClientHttpRequestFactory factory = new HttpComponentsClientHttpRequestFactory(httpClient);
-        RestTemplate restTemplate = new RestTemplate(factory);
+        for (Map.Entry<String, String> entry : headers.entrySet()) {
+            httpPost.addHeader(entry.getKey(), entry.getValue());
+        }
 
-        // Prepare request headers
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
 
-        // Prepare request body (form parameters)
-        Map<String, String> body = new HashMap<>();
-        body.put("grant_type", "client_credentials");
-        body.put("client_id", "your-client-id");
+        HttpResponse response = httpClient.execute(httpPost);
 
-        HttpEntity<Map<String, String>> requestEntity = new HttpEntity<>(body, headers);
+        String responseBody = EntityUtils.toString(response.getEntity());
 
-        // Perform POST request
-        ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, requestEntity, String.class);
+        System.out.println("Response: " + responseBody);
 
-        // Print response
-        System.out.println("Response: " + response.getBody());
+
+        httpClient.getConnectionManager().shutdown(); // Important: Close connections
     }
 }
