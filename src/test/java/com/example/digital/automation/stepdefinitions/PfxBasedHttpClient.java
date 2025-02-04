@@ -1,8 +1,7 @@
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
-import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
-import org.apache.http.conn.ssl.TrustSelfSignedStrategy;
-import org.apache.http.ssl.SSLContexts;
+import org.apache.hc.client5.http.classic.CloseableHttpClient;
+import org.apache.hc.client5.http.impl.classic.HttpClients;
+import org.apache.hc.core5.ssl.SSLContextBuilder;
+import org.apache.hc.core5.ssl.TrustStrategy;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.*;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
@@ -14,9 +13,9 @@ import java.security.KeyStore;
 import java.util.HashMap;
 import java.util.Map;
 
-public class PfxBasedHttpClient {
+public class PfxHttpClient {
     public static void main(String[] args) throws Exception {
-        String certPath = "certs/your-cert.pfx"; // Ensure it's in `src/main/resources/certs/`
+        String certPath = "certs/your-cert.pfx"; // Ensure it's inside `src/main/resources/certs/`
         String certPassword = "your-cert-passphrase";
         String url = "https://your-secure-api.com";
 
@@ -29,19 +28,18 @@ public class PfxBasedHttpClient {
         keyStore.load(certStream, certPassword.toCharArray());
         certStream.close();
 
-        // Create SSLContext
-        SSLContext sslContext = SSLContexts.custom()
+        // Create SSLContext with TrustStrategy to accept all certificates
+        SSLContext sslContext = SSLContextBuilder.create()
                 .loadKeyMaterial(keyStore, certPassword.toCharArray())
-                .loadTrustMaterial(null, new TrustSelfSignedStrategy()) // Accept self-signed certs
+                .loadTrustMaterial((TrustStrategy) (chain, authType) -> true) // Accept all certificates
                 .build();
 
-        // Create Apache HttpClient with SSL
-        SSLConnectionSocketFactory socketFactory = new SSLConnectionSocketFactory(sslContext);
+        // Create HttpClient 5 with SSL support
         CloseableHttpClient httpClient = HttpClients.custom()
-                .setSSLSocketFactory(socketFactory)
+                .setSSLContext(sslContext)
                 .build();
 
-        // Configure RestTemplate to use SSL
+        // Use HttpClient 5 with RestTemplate
         HttpComponentsClientHttpRequestFactory factory = new HttpComponentsClientHttpRequestFactory(httpClient);
         RestTemplate restTemplate = new RestTemplate(factory);
 
