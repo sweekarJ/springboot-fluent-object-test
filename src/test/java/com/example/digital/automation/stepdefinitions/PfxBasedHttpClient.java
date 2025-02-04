@@ -1,7 +1,8 @@
-import org.apache.hc.client5.http.classic.CloseableHttpClient;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
+import org.apache.hc.client5.http.ssl.SSLConnectionSocketFactory;
+import org.apache.hc.client5.http.ssl.TrustAllStrategy;
 import org.apache.hc.core5.ssl.SSLContextBuilder;
-import org.apache.hc.core5.ssl.TrustStrategy;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.*;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
@@ -15,7 +16,7 @@ import java.util.Map;
 
 public class PfxHttpClient {
     public static void main(String[] args) throws Exception {
-        String certPath = "certs/your-cert.pfx"; // Ensure it's inside `src/main/resources/certs/`
+        String certPath = "certs/your-cert.pfx"; // Path inside `src/main/resources/certs/`
         String certPassword = "your-cert-passphrase";
         String url = "https://your-secure-api.com";
 
@@ -28,18 +29,21 @@ public class PfxHttpClient {
         keyStore.load(certStream, certPassword.toCharArray());
         certStream.close();
 
-        // Create SSLContext with TrustStrategy to accept all certificates
+        // Create SSLContext
         SSLContext sslContext = SSLContextBuilder.create()
                 .loadKeyMaterial(keyStore, certPassword.toCharArray())
-                .loadTrustMaterial((TrustStrategy) (chain, authType) -> true) // Accept all certificates
+                .loadTrustMaterial(new TrustAllStrategy()) // Trust all certificates
                 .build();
 
-        // Create HttpClient 5 with SSL support
+        // Create SSL Socket Factory for HttpClient 5
+        SSLConnectionSocketFactory socketFactory = new SSLConnectionSocketFactory(sslContext);
+
+        // ✅ Correct method: Set SSLConnectionSocketFactory
         CloseableHttpClient httpClient = HttpClients.custom()
-                .setSSLContext(sslContext)
+                .setSSLSocketFactory(socketFactory)  // ✅ Correct method for HttpClient 5.x
                 .build();
 
-        // Use HttpClient 5 with RestTemplate
+        // Use HttpClient with RestTemplate
         HttpComponentsClientHttpRequestFactory factory = new HttpComponentsClientHttpRequestFactory(httpClient);
         RestTemplate restTemplate = new RestTemplate(factory);
 
