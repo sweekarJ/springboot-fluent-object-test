@@ -1,16 +1,17 @@
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-import java.util.Map;
+import org.apache.commons.httpclient.HttpClient;
+import org.apache.commons.httpclient.methods.PostMethod;
+import org.apache.commons.httpclient.NameValuePair;
+import org.apache.commons.httpclient.params.HttpMethodParams;
 import org.springframework.core.io.ClassPathResource;
+
+import javax.net.ssl.SSLContext;
 import java.io.InputStream;
 import java.security.KeyStore;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.TrustManagerFactory;
-import java.security.KeyManagerFactory;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
+import java.security.cert.X509Certificate;
+import java.util.HashMap;
+import java.util.Map;
 
 public class PfxHttpClient {
 
@@ -28,39 +29,48 @@ public class PfxHttpClient {
             KeyStore keyStore = KeyStore.getInstance("PKCS12");
             keyStore.load(certStream, certPassword.toCharArray());
 
-            KeyManagerFactory kmf = KeyManagerFactory.getInstance("SunX509");
-            kmf.init(keyStore, certPassword.toCharArray());
-            TrustManagerFactory tmf = TrustManagerFactory.getInstance("SunX509");
-            tmf.init(keyStore);
+            // Create a trust manager that does not validate certificate chains
+            TrustManager[] trustAllCerts = new TrustManager[] { new X509TrustManager() {
+                public java.security.cert.X509Certificate[] getAcceptedIssuers() {
+                    return null;
+                }
+                public void checkClientTrusted(X509Certificate[] certs, String authType) {
+                }
+                public void checkServerTrusted(X509Certificate[] certs, String authType) {
+                }
+            } };
 
-            SSLContext sslContext = SSLContext.getInstance("TLS");
-            sslContext.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
+            SSLContext sc = SSLContext.getInstance("TLS");
+            sc.init(null, trustAllCerts, new java.security.SecureRandom());
 
-            HttpClient client = HttpClient.newBuilder()
-                    .sslContext(sslContext)
-                    .build();
+            HttpClient client = new HttpClient();
+            client.getHostConfiguration().setHost("your-secure-api.com", 443, new org.apache.commons.httpclient.protocol.Protocol("https", new org.apache.commons.httpclient.contrib.HttpSslProtocolSocketFactory(sc), 443));
+
+            PostMethod method = new PostMethod(url);
+            method.addRequestHeader("Content-Type", "application/x-www-form-urlencoded");
 
             Map<String, String> body = new HashMap<>();
             body.put("grant_type", "client_credentials");
             body.put("client_id", "your-client-id");
             body.put("client_secret", "your-client-secret");
 
+            NameValuePair[] data = body.entrySet().stream()
+                    .map(entry -> new NameValuePair(entry.getKey(), entry.getValue()))
+                    .toArray(NameValuePair[]::new);
 
-            String requestBody = body.entrySet().stream()
-                    .map(entry -> entry.getKey() + "=" + entry.getValue())
-                    .reduce((s1, s2) -> s1 + "&" + s2)
-                    .orElse("");
+            method.setRequestBody(data);
 
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(url))
-                    .header("Content-Type", "application/x-www-form-urlencoded")
-                    .POST(HttpRequest.BodyPublishers.fromString(requestBody, StandardCharsets.UTF_8))
-                    .build();
+            int statusCode = client.executeMethod(method);
 
-            HttpResponse<String> response = client.send(request, java.net.http.HttpResponse.BodyHandlers.ofString());
+            if (statusCode != 200) {
+                System.err.println("HTTP Status Code: " + statusCode);
+            }
 
-            System.out.println("Response: " + response.body());
+            String responseBody = method.getResponseBodyAsString();
 
+            System.out.println("Response: " + responseBody);
+
+            method.releaseConnection();
         }
     }
 }
