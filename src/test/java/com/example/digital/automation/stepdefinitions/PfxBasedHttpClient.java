@@ -17,14 +17,15 @@ import java.io.InputStream;
 import java.security.KeyStore;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.ArrayList;
+import java.util.List;
 
 public class PfxHttpClient {
     public static void main(String[] args) throws Exception {
-        String certPath = "certs/your-cert.pfx"; // Path inside `src/main/resources/certs/`
+        String certPath = "certs/your-cert.pfx";
         String certPassword = "your-cert-passphrase";
         String url = "https://your-secure-api.com";
 
-        // Load PFX certificate from classpath
         ClassPathResource resource = new ClassPathResource(certPath);
         InputStream certStream = resource.getInputStream();
 
@@ -32,20 +33,17 @@ public class PfxHttpClient {
             throw new RuntimeException("Certificate file not found: " + certPath);
         }
 
-        // Load KeyStore with PFX
         KeyStore keyStore = KeyStore.getInstance("PKCS12");
         keyStore.load(certStream, certPassword.toCharArray());
         certStream.close();
 
-        // Create SSLContext  -  ***IN PRODUCTION, REPLACE TrustAllStrategy***
-        SSLContext sslContext = org.apache.http.ssl.SSLContextBuilder.create()  // Correct import for HttpClient 4
+        // ***INSECURE - REPLACE IN PRODUCTION***
+        SSLContext sslContext = org.apache.http.ssl.SSLContextBuilder.create()
                 .loadKeyMaterial(keyStore, certPassword.toCharArray())
-                .loadTrustMaterial(org.apache.http.ssl.TrustAllStrategy.INSTANCE) // ***SECURITY RISK***
+                .loadTrustMaterial(org.apache.http.ssl.TrustAllStrategy.INSTANCE) // VERY INSECURE
                 .build();
 
 
-        KeyStore trustStore = KeyStore.getInstance("JKS"); // Or PKCS12 if needed
-        trustStore.load(null, null); // Initialize an empty truststore
 
         SSLSocketFactory sf = new SSLSocketFactory(sslContext);
         Scheme scheme = new Scheme("https", 443, sf);
@@ -53,7 +51,7 @@ public class PfxHttpClient {
         PoolingClientConnectionManager connectionManager = new PoolingClientConnectionManager();
         connectionManager.getSchemeRegistry().register(scheme);
 
-        HttpClient httpClient = HttpClients.custom()
+        CloseableHttpClient httpClient = HttpClients.custom() // Important: CloseableHttpClient
                 .setConnectionManager(connectionManager)
                 .build();
 
@@ -64,28 +62,28 @@ public class PfxHttpClient {
 
         Map<String, String> body = new HashMap<>();
         body.put("grant_type", "client_credentials");
-        body.put("client_id", "your-client-id"); // Make sure these are correct
-        body.put("client_secret", "your-client-secret"); //  If your API requires it
+        body.put("client_id", "your-client-id");
+        body.put("client_secret", "your-client-secret");
 
         String requestBody = body.entrySet().stream()
                 .map(entry -> entry.getKey() + "=" + entry.getValue())
                 .reduce((s1, s2) -> s1 + "&" + s2)
                 .orElse("");
 
-
-        StringEntity entity = new StringEntity(requestBody, "UTF-8"); // Important: Specify UTF-8
+        StringEntity entity = new StringEntity(requestBody, "UTF-8");
         httpPost.setEntity(entity);
+
 
         for (Map.Entry<String, String> entry : headers.entrySet()) {
             httpPost.addHeader(entry.getKey(), entry.getValue());
         }
 
         HttpResponse response = httpClient.execute(httpPost);
-
-        String responseBody = EntityUtils.toString(response.getEntity());
+        String responseBody = EntityUtils.toString(response.getEntity(), "UTF-8"); // Specify encoding
 
         System.out.println("Response: " + responseBody);
 
-        httpClient.getConnectionManager().shutdown(); // Important: Close connections
+        httpClient.close(); // Close HttpClient
+        connectionManager.shutdown(); // Close Connection Manager
     }
 }
