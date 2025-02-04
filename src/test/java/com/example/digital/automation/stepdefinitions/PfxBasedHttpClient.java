@@ -1,104 +1,63 @@
-import org.apache.commons.httpclient.HttpClient;
-import org.apache.commons.httpclient.methods.PostMethod;
-import org.apache.commons.httpclient.NameValuePair;
-import org.apache.commons.httpclient.params.HttpMethodParams;
-import org.springframework.core.io.ClassPathResource;
+import io.restassured.RestAssured;
+import io.restassured.config.HttpClientConfig;
+import io.restassured.config.RestAssuredConfig;
+import org.apache.http.client.HttpClient;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.ssl.SSLContextBuilder;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.web.server.LocalServerPort;
 
 import javax.net.ssl.SSLContext;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509TrustManager;
-import java.io.InputStream;
+import java.io.File;
+import java.io.FileInputStream;
 import java.security.KeyStore;
-import java.util.HashMap;
-import java.util.Map;
-import org.apache.commons.httpclient.protocol.Protocol;
 
-public class PfxHttpClient {
+import static io.restassured.RestAssured.given;
+import static org.hamcrest.Matchers.equalTo;
 
-    public static void main(String[] args) throws Exception {
-        // ... (certificate loading code - same as before)
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT) // Use a random port
+public class PfxSslTest {
 
-        // Create a trust manager that does not validate certificate chains (INSECURE - REPLACE IN PRODUCTION)
-        TrustManager[] trustAllCerts = new TrustManager[] { new X509TrustManager() {
-            public java.security.cert.X509Certificate[] getAcceptedIssuers() {
-                return null;
-            }
-            public void checkClientTrusted(X509Certificate[] certs, String authType) {
-            }
-            public void checkServerTrusted(X509Certificate[] certs, String authType) {
-            }
-        } };
+    @LocalServerPort
+    private int port;
 
-        SSLContext sc = SSLContext.getInstance("TLS");
-        sc.init(null, trustAllCerts, new java.security.SecureRandom());
+    private static final String PFX_FILE_PATH = "path/to/your/certificate.pfx"; // Replace with your PFX file path
+    private static final String PFX_PASSWORD = "your_pfx_password"; // Replace with your PFX password
 
-        Protocol.registerProtocol("https", new Protocol("https", new MySecureProtocolSocketFactory(sc), 443)); // Use custom socket factory
-
-        HttpClient client = new HttpClient();
-
-        PostMethod method = new PostMethod(url);
-        method.addRequestHeader("Content-Type", "application/x-www-form-urlencoded");
-
-        Map<String, String> body = new HashMap<>();
-        body.put("grant_type", "client_credentials");
-        body.put("client_id", "your-client-id");
-        body.put("client_secret", "your-client-secret");
-
-        NameValuePair[] data = body.entrySet().stream()
-                .map(entry -> new NameValuePair(entry.getKey(), entry.getValue()))
-                .toArray(NameValuePair[]::new);
-
-        method.setRequestBody(data);
-
-        int statusCode = client.executeMethod(method);
-
-        if (statusCode != 200) {
-            System.err.println("HTTP Status Code: " + statusCode);
+    @BeforeAll
+    public static void setup() throws Exception {
+        // Load the KeyStore
+        KeyStore keyStore = KeyStore.getInstance("PKCS12"); // PFX is usually PKCS12
+        try (FileInputStream fis = new FileInputStream(new File(PFX_FILE_PATH))) {
+            keyStore.load(fis, PFX_PASSWORD.toCharArray());
         }
 
-        String responseBody = method.getResponseBodyAsString();
+        // Create SSLContext
+        SSLContext sslContext = SSLContextBuilder.create()
+                .loadKeyStore(keyStore, PFX_PASSWORD.toCharArray())
+                .build();
 
-        System.out.println("Response: " + responseBody);
+        // Create HttpClient
+        HttpClient httpClient = HttpClients.custom()
+                .setSSLContext(sslContext)
+                .build();
 
-        method.releaseConnection();
-    }
-}
-
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLSocketFactory;
-import java.io.IOException;
-import java.net.Socket;
-import org.apache.commons.httpclient.protocol.SecureProtocolSocketFactory;
-
-class MySecureProtocolSocketFactory implements SecureProtocolSocketFactory {
-
-    private SSLContext sslContext = null;
-
-    public MySecureProtocolSocketFactory(SSLContext sslContext) {
-        this.sslContext = sslContext;
-    }
-
-    public Socket createSocket(String host, int port) throws IOException {
-        SSLSocketFactory factory = sslContext.getSocketFactory();
-        return factory.createSocket(host, port);
-    }
-
-    public Socket createSocket(String host, int port, java.net.InetAddress localAddress, int localPort) throws IOException {
-        SSLSocketFactory factory = sslContext.getSocketFactory();
-        return factory.createSocket(host, port, localAddress, localPort);
+        // Configure RestAssured
+        RestAssured.config = RestAssuredConfig.config()
+                .httpClient(HttpClientConfig.httpClient().using(httpClient));
     }
 
 
-    public Socket createSocket(Socket socket, String host, int port, boolean autoClose) throws IOException {
-        SSLSocketFactory factory = sslContext.getSocketFactory();
-        return factory.createSocket(socket, host, port, autoClose);
-    }
-
-    public boolean equals(Object obj) {
-        return (obj == this);
-    }
-
-    public int hashCode() {
-        return this.getClass().hashCode();
+    @Test
+    void testSslEndpoint() {
+        given()
+                .port(port) // Important: Use the random port
+                .when()
+                .get("/your/ssl/endpoint") // Replace with your SSL endpoint
+                .then()
+                .statusCode(200)
+                .body(equalTo("Expected response")); // Replace with your expected response
     }
 }
